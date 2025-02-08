@@ -27,6 +27,14 @@ protected:
 	void TurnAtRate(float Rate);
 	void LookUpAtRate(float Rate);
 	void FirePistol();
+	void UltimateFire();
+	void SpawnFX(FName SocketName, UParticleSystem* ParticleFX);
+	void PlayAnimation(UAnimMontage* AnimationMontage, FName SectionName);
+	void PlaySound(USoundBase* SoundCue);
+	void ApplyForceWhenUltimateIsUsed(float Total_Force, float Upward_Force);
+	void DelayedUltimateAbility();
+	void DelayedUltimateAbilityEmitter();
+	void EnablePlayerInput();
 
 private:
 	//Camera boom positioning the camera behind the character
@@ -35,19 +43,45 @@ private:
 	//Camera that follows the character
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
+	
 	//Base turn rate
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	float BaseTurnRate;
 	//Base look up rate
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	float BaseLookUpRate;
-	//Sound Cue
+	
+	//Sound Cue - Pistol
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat , meta = (AllowPrivateAccess = "true"))
 	class USoundCue* PistolSoundCue;
 	//Muzzle Pistol Flash
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
 	class UParticleSystem* PistolMuzzleFX;
+	//Primary Fire Anim Montage
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	class UAnimMontage* PistolFireMontage;
 
+	//Sound Cue - Ultimate
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	class USoundCue* UltimateSoundCue;
+	//Muzzle Ultimate Flash
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	class UParticleSystem* UltimateMuzzleFX;
+	//Ultimate Ultimate Anim Montage
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	class UAnimMontage* UltimateFireMontage;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ultimate, meta = (AllowPrivateAccess = "true"))
+	float UltimateForceMagnitude;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ultimate, meta = (AllowPrivateAccess = "true"))
+	float UltimateUpwardForce;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ultimate, meta = (AllowPrivateAccess = "true"))
+	float UltimateAbilityDelay;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ultimate, meta = (AllowPrivateAccess = "true"))
+	float UltimateAbilityEmitterDelay;
+
+	FTimerHandle UltimateHandle; //Used for delaying ultimate
+	FTimerHandle UltimateEmitterHandle;
+	FTimerHandle PlayerInputTimeHandle;
 public:
 
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }

@@ -6,11 +6,24 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "Particles/ParticleSystem.h"
+#include "Animation/AnimInstance.h"
+#include "TimerManager.h"
 
 
 AMyCharacter::AMyCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+
+	AutoPossessPlayer = EAutoReceiveInput::Player0;
+
+	//Ultimate Variables
+	UltimateForceMagnitude = 500.0f;
+	UltimateUpwardForce = 200.0f;
+	// Set gravity scale
+	GetCharacterMovement()->GravityScale = 10.0f;
+	// Set character mass (if needed)
+	GetCharacterMovement()->Mass = 100.0f;
 
 	BaseTurnRate = 55.f;
 	BaseLookUpRate = 55.f;
@@ -41,6 +54,7 @@ void AMyCharacter::BeginPlay()
 
 void AMyCharacter::MoveForward(float Value)
 {
+
 	if((Controller!=nullptr) && (Value!=0.0f))
 	{
 		const FRotator Rotation{ Controller->GetControlRotation() };
@@ -53,6 +67,7 @@ void AMyCharacter::MoveForward(float Value)
 
 void AMyCharacter::MoveRight(float Value)
 {
+
 	if ((Controller != nullptr) && (Value != 0.0f))
 	{
 		const FRotator Rotation{ Controller->GetControlRotation() };
@@ -73,21 +88,97 @@ void AMyCharacter::LookUpAtRate(float Rate)
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
-void AMyCharacter::FirePistol() //Functionality for firing pistol
+void AMyCharacter::SpawnFX(FName SocketName, UParticleSystem* ParticleFX)
 {
-	// Spawning Particle System - MuzzleFX
-	const USkeletalMeshSocket* PistolMuzzleSocket = GetMesh()->GetSocketByName("pistolMuzzle"); // Retrieve the socket named "pistolMuzzle" from the skeletal mesh and store its information in PistolMuzzleSocket
-	if (PistolMuzzleSocket) // Check if the PistolMuzzleSocket is valid (not null)
+	const USkeletalMeshSocket* Socket = GetMesh()->GetSocketByName(SocketName); // Retrieve the socket named by SocketName from the skeletal mesh
+	if (Socket) // Check if the Socket is valid (not null)
 	{
-		const FTransform SocketTransform = PistolMuzzleSocket->GetSocketTransform(GetMesh()); // Get the transform (location, rotation, scale) of the "pistolMuzzle" socket
-		if (PistolMuzzleFX) // Check if the particle system (PistolMuzzleFX) is valid (not null)
+		const FTransform SocketTransform = Socket->GetSocketTransform(GetMesh()); // Get the transform (location, rotation, scale) of the socket
+		if (ParticleFX) // Check if the particle system (ParticleFX) is valid (not null)
 		{
-			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolMuzzleFX, SocketTransform); // Spawn the particle emitter at the location of the socket's transform
+			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ParticleFX, SocketTransform); // Spawn the particle emitter at the location of the socket's transform
 		}
 	}
-	//Sound Cue
-	UGameplayStatics::PlaySound2D(this, PistolSoundCue);
 }
+
+void AMyCharacter::PlayAnimation(UAnimMontage* AnimationMontage, FName SectionName)
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimationMontage && AnimInstance)
+	{
+		AnimInstance->Montage_Play(AnimationMontage);
+		AnimInstance->Montage_JumpToSection(SectionName);
+	}
+}
+
+void AMyCharacter::PlaySound(USoundBase* SoundCue)
+{
+	UGameplayStatics::PlaySound2D(this, SoundCue);
+}
+
+void AMyCharacter::ApplyForceWhenUltimateIsUsed(float ForceMagnitude, float UpwardForce)
+{
+	FVector LaunchDirection = GetActorForwardVector();
+	LaunchDirection.Normalize();
+
+	float Mass = GetCharacterMovement()->Mass;
+
+	float AdjustedForce = ForceMagnitude * GetCharacterMovement()->GravityScale * Mass;
+	float AdjustedUpward = UpwardForce * GetCharacterMovement()->GravityScale * Mass;
+
+	FVector Force = -LaunchDirection * ForceMagnitude + FVector(0.f,0.f,UpwardForce);
+
+	GetCharacterMovement()->AddImpulse(Force, true);
+
+	//UE_LOG(LogTemp, Warning, TEXT("Force applied to character: %s"), *Force.ToString());
+}
+
+void AMyCharacter::FirePistol() // Functionality for firing pistol
+{
+	SpawnFX("pistolMuzzle", PistolMuzzleFX);
+	PlayAnimation(PistolFireMontage, "Fire");
+	PlaySound(PistolSoundCue);
+}
+
+void AMyCharacter::UltimateFire()
+{
+	//Disable Player Inputs
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (PlayerController) 
+	{
+		PlayerController->DisableInput(PlayerController);
+		//UE_LOG(LogTemp, Warning, TEXT("Input Disabled"));
+	}
+
+	PlayAnimation(UltimateFireMontage, "Ultimate");
+	float DelayForAnimationDuration = UltimateFireMontage->GetPlayLength();
+
+	GetWorldTimerManager().SetTimer(PlayerInputTimeHandle, this, &AMyCharacter::EnablePlayerInput, DelayForAnimationDuration, false);
+	GetWorldTimerManager().SetTimer(UltimateHandle, this, &AMyCharacter::DelayedUltimateAbility, UltimateAbilityDelay, false);
+	GetWorldTimerManager().SetTimer(UltimateEmitterHandle, this, &AMyCharacter::DelayedUltimateAbilityEmitter, UltimateAbilityEmitterDelay, false);
+}
+
+void AMyCharacter::EnablePlayerInput()
+{
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (PlayerController)
+	{
+		PlayerController->EnableInput(PlayerController);
+		//UE_LOG(LogTemp, Warning, TEXT("Input Enabled"));
+	}
+}
+
+void AMyCharacter::DelayedUltimateAbility()
+{
+	ApplyForceWhenUltimateIsUsed(UltimateForceMagnitude, UltimateUpwardForce);
+}
+
+void AMyCharacter::DelayedUltimateAbilityEmitter()
+{
+	SpawnFX("bazookaMuzzle", UltimateMuzzleFX); // Functionality for firing ultimate ability
+	PlaySound(UltimateSoundCue);
+}
+
 
 void AMyCharacter::Tick(float DeltaTime)
 {
@@ -107,5 +198,6 @@ void AMyCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput); //Mouse Y Movement
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput); //Mouse X Movement
 	PlayerInputComponent->BindAction("FirePistol", EInputEvent::IE_Pressed, this, &AMyCharacter::FirePistol);
+	PlayerInputComponent->BindAction("UltimateAbility", EInputEvent::IE_Pressed, this, &AMyCharacter::UltimateFire);
 }
 
