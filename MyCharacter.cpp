@@ -8,6 +8,7 @@
 #include "Particles/ParticleSystem.h"
 #include "Animation/AnimInstance.h"
 #include "TimerManager.h"
+#include "Particles/ParticleSystemComponent.h"
 
 
 AMyCharacter::AMyCharacter()
@@ -23,7 +24,7 @@ AMyCharacter::AMyCharacter()
 	// Set gravity scale
 	GetCharacterMovement()->GravityScale = 10.0f;
 	// Set character mass (if needed)
-	GetCharacterMovement()->Mass = 100.0f;
+	GetCharacterMovement()->Mass = 100.f;
 
 	BaseTurnRate = 55.f;
 	BaseLookUpRate = 55.f;
@@ -32,6 +33,7 @@ AMyCharacter::AMyCharacter()
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 300.f; // The camera follows at this distance behind the character
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
+	CameraBoom->SocketOffset = FVector(0.f, 50.f, 50.f);
 
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
@@ -40,9 +42,9 @@ AMyCharacter::AMyCharacter()
 	//Character don't rotate when camera does
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
-	bUseControllerRotationYaw = false;
+	bUseControllerRotationYaw = true; //Set false, if want to control ultimate with keys
 	//Configure character movement further
-	GetCharacterMovement()->bOrientRotationToMovement = true; //Character moves in  direction of input
+	GetCharacterMovement()->bOrientRotationToMovement = false; //Character moves in  direction of input
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f); // at this rotation
 }
 
@@ -88,6 +90,49 @@ void AMyCharacter::LookUpAtRate(float Rate)
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
+//void AMyCharacter::SpawnFX(FName SocketName, UParticleSystem* ParticleFX)
+//{
+//	const USkeletalMeshSocket* Socket = GetMesh()->GetSocketByName(SocketName); // Retrieve the socket named by SocketName from the skeletal mesh
+//	if (Socket) // Check if the Socket is valid (not null)
+//	{
+//		const FTransform SocketTransform = Socket->GetSocketTransform(GetMesh()); // Get the transform (location, rotation, scale) of the socket
+//		if (ParticleFX) // Check if the particle system (ParticleFX) is valid (not null)
+//		{
+//			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ParticleFX, SocketTransform); // Spawn the particle emitter at the location of the socket's transform
+//		}
+//		//Hit Result FHitResult
+//		FHitResult FireHit;
+//		const FVector Start = SocketTransform.GetLocation();
+//		const FQuat Rotation = SocketTransform.GetRotation();
+//		const FVector RotationAxis = Rotation.GetAxisX();
+//		const FVector End = Start + RotationAxis * 50000.f;
+//
+//		FVector BeamEndPoint = End; //When there is no hit
+//
+//		GetWorld()->LineTraceSingleByChannel(FireHit, Start, End, ECollisionChannel::ECC_Visibility);
+//		if(FireHit.bBlockingHit)
+//		{
+//			//Include DrawDebugHeaderFile if un-commneting below two comments
+//			//DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 2.f);
+//			//DrawDebugPoint(GetWorld(), FireHit.Location, 15.f, FColor::Black, false, 2.f);
+//
+//			BeamEndPoint = FireHit.Location; //When FireHit.bBlockingHit is true i.e. LineTrace hit happened
+//			if(PistolHitFX)
+//			{
+//				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolHitFX, FireHit.Location);
+//			}
+//		}
+//		if(PistolBeamFX)
+//		{
+//			UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolBeamFX, SocketTransform);
+//			if(Beam)
+//			{
+//				Beam->SetVectorParameter(FName("Target"), BeamEndPoint);
+//			}
+//		}
+//	}
+//}
+
 void AMyCharacter::SpawnFX(FName SocketName, UParticleSystem* ParticleFX)
 {
 	const USkeletalMeshSocket* Socket = GetMesh()->GetSocketByName(SocketName); // Retrieve the socket named by SocketName from the skeletal mesh
@@ -97,6 +142,57 @@ void AMyCharacter::SpawnFX(FName SocketName, UParticleSystem* ParticleFX)
 		if (ParticleFX) // Check if the particle system (ParticleFX) is valid (not null)
 		{
 			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ParticleFX, SocketTransform); // Spawn the particle emitter at the location of the socket's transform
+		}
+
+		//Replicates Crosshair Position same as HUD
+		FVector2D ViewportSize;
+		if (GEngine && GEngine->GameViewport)
+		{
+			GEngine->GameViewport->GetViewportSize(ViewportSize);
+		}
+		FVector2D CrosshairLocation(ViewportSize.X / 2.f, ViewportSize.Y / 2.f);
+		//CrosshairLocation.Y -= 50.f;
+		FVector CrosshairWorldPosition;
+		FVector CrosshairWorldDirection;
+
+		bool bScreenToWorld = UGameplayStatics::DeprojectScreenToWorld
+		(
+			UGameplayStatics::GetPlayerController(this, 0),
+			CrosshairLocation,
+			CrosshairWorldPosition,
+			CrosshairWorldDirection
+		);
+
+		if (bScreenToWorld)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Deproject Successful"));
+			FHitResult ScreenHitResult;
+			const FVector Start = CrosshairWorldPosition;
+			const FVector End = CrosshairWorldPosition + CrosshairWorldDirection * 50000.f;
+
+			FVector BeamEndPoint = End; //No Hit
+
+			GetWorld()->LineTraceSingleByChannel(ScreenHitResult, Start, End, ECollisionChannel::ECC_Visibility);
+
+			if (ScreenHitResult.bBlockingHit)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Trace Successful"));
+				BeamEndPoint = ScreenHitResult.Location;
+				
+			if (PistolHitFX)
+			{
+					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolHitFX, ScreenHitResult.Location);
+			}
+		}
+
+			if (PistolBeamFX)
+			{
+				UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolBeamFX, SocketTransform);
+				if (Beam)
+				{
+					Beam->SetVectorParameter(FName("Target"), BeamEndPoint);
+				}
+			}
 		}
 	}
 }
