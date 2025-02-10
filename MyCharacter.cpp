@@ -90,6 +90,7 @@ void AMyCharacter::LookUpAtRate(float Rate)
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
+
 //void AMyCharacter::SpawnFX(FName SocketName, UParticleSystem* ParticleFX)
 //{
 //	const USkeletalMeshSocket* Socket = GetMesh()->GetSocketByName(SocketName); // Retrieve the socket named by SocketName from the skeletal mesh
@@ -100,34 +101,69 @@ void AMyCharacter::LookUpAtRate(float Rate)
 //		{
 //			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ParticleFX, SocketTransform); // Spawn the particle emitter at the location of the socket's transform
 //		}
-//		//Hit Result FHitResult
-//		FHitResult FireHit;
-//		const FVector Start = SocketTransform.GetLocation();
-//		const FQuat Rotation = SocketTransform.GetRotation();
-//		const FVector RotationAxis = Rotation.GetAxisX();
-//		const FVector End = Start + RotationAxis * 50000.f;
 //
-//		FVector BeamEndPoint = End; //When there is no hit
-//
-//		GetWorld()->LineTraceSingleByChannel(FireHit, Start, End, ECollisionChannel::ECC_Visibility);
-//		if(FireHit.bBlockingHit)
+//		//Replicates Crosshair Position same as HUD
+//		FVector2D ViewportSize;
+//		if (GEngine && GEngine->GameViewport)
 //		{
-//			//Include DrawDebugHeaderFile if un-commneting below two comments
-//			//DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 2.f);
-//			//DrawDebugPoint(GetWorld(), FireHit.Location, 15.f, FColor::Black, false, 2.f);
-//
-//			BeamEndPoint = FireHit.Location; //When FireHit.bBlockingHit is true i.e. LineTrace hit happened
-//			if(PistolHitFX)
-//			{
-//				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolHitFX, FireHit.Location);
-//			}
+//			GEngine->GameViewport->GetViewportSize(ViewportSize);
 //		}
-//		if(PistolBeamFX)
+//		FVector2D CrosshairLocation(ViewportSize.X / 2.f, ViewportSize.Y / 2.f);
+//		//CrosshairLocation.Y -= 50.f;
+//		FVector CrosshairWorldPosition;
+//		FVector CrosshairWorldDirection;
+//
+//		bool bScreenToWorld = UGameplayStatics::DeprojectScreenToWorld
+//		(
+//			UGameplayStatics::GetPlayerController(this, 0),
+//			CrosshairLocation,
+//			CrosshairWorldPosition,
+//			CrosshairWorldDirection
+//		);
+//
+//		if (bScreenToWorld)
 //		{
-//			UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolBeamFX, SocketTransform);
-//			if(Beam)
+//			//Trace from Crosshair
+			//UE_LOG(LogTemp, Warning, TEXT("Deproject Successful"));
+			//FHitResult ScreenHitResult;
+			//const FVector Start = CrosshairWorldPosition;
+			//const FVector End = CrosshairWorldPosition + CrosshairWorldDirection * 50000.f;
+
+			//FVector BeamEndPoint = End; //No Hit
+			//
+			//GetWorld()->LineTraceSingleByChannel(ScreenHitResult, Start, End, ECollisionChannel::ECC_Visibility);
+
+			//if (ScreenHitResult.bBlockingHit)
+			//{
+			//	UE_LOG(LogTemp, Warning, TEXT("Trace FROM Crosshair Successful"));
+			//	BeamEndPoint = ScreenHitResult.Location; //Storing location of hit from crosshair to object in the world
+			//	
+			//}
+			////Trace from Weapon Barrel
+			//FHitResult BarrelHitResult;
+			//const FVector WeaponTraceStart = SocketTransform.GetLocation();
+			//const FVector WeaponTraceEnd = BeamEndPoint; //Either no hit or hit from crosshair to object in the world
+			//
+			//GetWorld()->LineTraceSingleByChannel(BarrelHitResult, WeaponTraceStart, WeaponTraceEnd, ECollisionChannel::ECC_Visibility);
+			//if(BarrelHitResult.bBlockingHit)
+			//{
+			//	UE_LOG(LogTemp, Warning, TEXT("Trace FROM Weapon Barrel Successful"));
+			//	BeamEndPoint = BarrelHitResult.Location;
+			//}
+//
+//			//Spawning FX
+//			if (PistolHitFX)
 //			{
-//				Beam->SetVectorParameter(FName("Target"), BeamEndPoint);
+//					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolHitFX, BeamEndPoint);
+//			}
+//
+//			if (PistolBeamFX)
+//			{
+//				UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolBeamFX, SocketTransform);
+//				if (Beam)
+//				{
+//					Beam->SetVectorParameter(FName("Target"), BeamEndPoint);
+//				}
 //			}
 //		}
 //	}
@@ -144,57 +180,78 @@ void AMyCharacter::SpawnFX(FName SocketName, UParticleSystem* ParticleFX)
 			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ParticleFX, SocketTransform); // Spawn the particle emitter at the location of the socket's transform
 		}
 
-		//Replicates Crosshair Position same as HUD
-		FVector2D ViewportSize;
-		if (GEngine && GEngine->GameViewport)
+		FVector BeamEndPoint;
+		bool bBeamEndPoint = GetBeamEndPointLocation(SocketTransform.GetLocation(), BeamEndPoint);
+
+		if (bBeamEndPoint)
 		{
-			GEngine->GameViewport->GetViewportSize(ViewportSize);
-		}
-		FVector2D CrosshairLocation(ViewportSize.X / 2.f, ViewportSize.Y / 2.f);
-		//CrosshairLocation.Y -= 50.f;
-		FVector CrosshairWorldPosition;
-		FVector CrosshairWorldDirection;
-
-		bool bScreenToWorld = UGameplayStatics::DeprojectScreenToWorld
-		(
-			UGameplayStatics::GetPlayerController(this, 0),
-			CrosshairLocation,
-			CrosshairWorldPosition,
-			CrosshairWorldDirection
-		);
-
-		if (bScreenToWorld)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Deproject Successful"));
-			FHitResult ScreenHitResult;
-			const FVector Start = CrosshairWorldPosition;
-			const FVector End = CrosshairWorldPosition + CrosshairWorldDirection * 50000.f;
-
-			FVector BeamEndPoint = End; //No Hit
-
-			GetWorld()->LineTraceSingleByChannel(ScreenHitResult, Start, End, ECollisionChannel::ECC_Visibility);
-
-			if (ScreenHitResult.bBlockingHit)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("Trace Successful"));
-				BeamEndPoint = ScreenHitResult.Location;
-				
 			if (PistolHitFX)
 			{
-					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolHitFX, ScreenHitResult.Location);
+				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolHitFX, BeamEndPoint);
 			}
-		}
 
-			if (PistolBeamFX)
+			UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolBeamFX, SocketTransform);
+			if (Beam)
 			{
-				UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolBeamFX, SocketTransform);
-				if (Beam)
-				{
-					Beam->SetVectorParameter(FName("Target"), BeamEndPoint);
-				}
+				Beam->SetVectorParameter(FName("Target"), BeamEndPoint);
 			}
 		}
 	}
+}
+
+bool AMyCharacter::GetBeamEndPointLocation(const FVector& SocketLocation, FVector& BeamEndLocation)
+{
+	FVector2D ViewportSize;
+	if (GEngine && GEngine->GameViewport)
+	{
+		GEngine->GameViewport->GetViewportSize(ViewportSize);
+	}
+
+	FVector2D CrosshairLocation(ViewportSize.X / 2.f, ViewportSize.Y / 2.f);
+	FVector CrosshairWorldPosition;
+	FVector CrosshairWorldDirection;
+	
+	bool bScreenToWorld = UGameplayStatics::DeprojectScreenToWorld
+	(
+		UGameplayStatics::GetPlayerController(this, 0),
+		CrosshairLocation,
+		CrosshairWorldPosition,
+		CrosshairWorldDirection
+	);
+
+	if(bScreenToWorld)
+	{
+		//Trace from Crosshair
+		UE_LOG(LogTemp, Warning, TEXT("Deproject Successful"));
+		FHitResult ScreenHitResult;
+		const FVector Start = CrosshairWorldPosition;
+		const FVector End = CrosshairWorldPosition + CrosshairWorldDirection * 50000.f;
+
+		BeamEndLocation = End; //No Hit
+
+		GetWorld()->LineTraceSingleByChannel(ScreenHitResult, Start, End, ECollisionChannel::ECC_Visibility);
+
+		if (ScreenHitResult.bBlockingHit)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Trace FROM Crosshair Successful"));
+			BeamEndLocation = ScreenHitResult.Location; //Storing location of hit from crosshair to object in the world
+
+		}
+
+		//Trace from Weapon Barrel
+		FHitResult BarrelHitResult;
+		const FVector WeaponTraceStart = SocketLocation;
+		const FVector WeaponTraceEnd = BeamEndLocation; //Either no hit or hit from crosshair to object in the world
+
+		GetWorld()->LineTraceSingleByChannel(BarrelHitResult, WeaponTraceStart, WeaponTraceEnd, ECollisionChannel::ECC_Visibility);
+		if (BarrelHitResult.bBlockingHit)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Trace FROM Weapon Barrel Successful"));
+			BeamEndLocation = BarrelHitResult.Location;
+		}
+		return true;
+	}
+	return false;
 }
 
 void AMyCharacter::PlayAnimation(UAnimMontage* AnimationMontage, FName SectionName)
@@ -263,6 +320,7 @@ void AMyCharacter::EnablePlayerInput()
 		//UE_LOG(LogTemp, Warning, TEXT("Input Enabled"));
 	}
 }
+
 
 void AMyCharacter::DelayedUltimateAbility()
 {

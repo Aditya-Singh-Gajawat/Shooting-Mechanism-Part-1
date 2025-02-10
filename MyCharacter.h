@@ -35,7 +35,7 @@ protected:
 	void DelayedUltimateAbility();
 	void DelayedUltimateAbilityEmitter();
 	void EnablePlayerInput();
-
+	bool GetBeamEndPointLocation(const FVector& SocketLocation, FVector& BeamEndLocation);
 private:
 	//Camera boom positioning the camera behind the character
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
