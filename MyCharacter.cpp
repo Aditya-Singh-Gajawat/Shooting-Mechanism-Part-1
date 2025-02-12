@@ -91,86 +91,14 @@ void AMyCharacter::LookUpAtRate(float Rate)
 }
 
 
-//void AMyCharacter::SpawnFX(FName SocketName, UParticleSystem* ParticleFX)
-//{
-//	const USkeletalMeshSocket* Socket = GetMesh()->GetSocketByName(SocketName); // Retrieve the socket named by SocketName from the skeletal mesh
-//	if (Socket) // Check if the Socket is valid (not null)
-//	{
-//		const FTransform SocketTransform = Socket->GetSocketTransform(GetMesh()); // Get the transform (location, rotation, scale) of the socket
-//		if (ParticleFX) // Check if the particle system (ParticleFX) is valid (not null)
-//		{
-//			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ParticleFX, SocketTransform); // Spawn the particle emitter at the location of the socket's transform
-//		}
-//
-//		//Replicates Crosshair Position same as HUD
-//		FVector2D ViewportSize;
-//		if (GEngine && GEngine->GameViewport)
-//		{
-//			GEngine->GameViewport->GetViewportSize(ViewportSize);
-//		}
-//		FVector2D CrosshairLocation(ViewportSize.X / 2.f, ViewportSize.Y / 2.f);
-//		//CrosshairLocation.Y -= 50.f;
-//		FVector CrosshairWorldPosition;
-//		FVector CrosshairWorldDirection;
-//
-//		bool bScreenToWorld = UGameplayStatics::DeprojectScreenToWorld
-//		(
-//			UGameplayStatics::GetPlayerController(this, 0),
-//			CrosshairLocation,
-//			CrosshairWorldPosition,
-//			CrosshairWorldDirection
-//		);
-//
-//		if (bScreenToWorld)
-//		{
-//			//Trace from Crosshair
-			//UE_LOG(LogTemp, Warning, TEXT("Deproject Successful"));
-			//FHitResult ScreenHitResult;
-			//const FVector Start = CrosshairWorldPosition;
-			//const FVector End = CrosshairWorldPosition + CrosshairWorldDirection * 50000.f;
-
-			//FVector BeamEndPoint = End; //No Hit
-			//
-			//GetWorld()->LineTraceSingleByChannel(ScreenHitResult, Start, End, ECollisionChannel::ECC_Visibility);
-
-			//if (ScreenHitResult.bBlockingHit)
-			//{
-			//	UE_LOG(LogTemp, Warning, TEXT("Trace FROM Crosshair Successful"));
-			//	BeamEndPoint = ScreenHitResult.Location; //Storing location of hit from crosshair to object in the world
-			//	
-			//}
-			////Trace from Weapon Barrel
-			//FHitResult BarrelHitResult;
-			//const FVector WeaponTraceStart = SocketTransform.GetLocation();
-			//const FVector WeaponTraceEnd = BeamEndPoint; //Either no hit or hit from crosshair to object in the world
-			//
-			//GetWorld()->LineTraceSingleByChannel(BarrelHitResult, WeaponTraceStart, WeaponTraceEnd, ECollisionChannel::ECC_Visibility);
-			//if(BarrelHitResult.bBlockingHit)
-			//{
-			//	UE_LOG(LogTemp, Warning, TEXT("Trace FROM Weapon Barrel Successful"));
-			//	BeamEndPoint = BarrelHitResult.Location;
-			//}
-//
-//			//Spawning FX
-//			if (PistolHitFX)
-//			{
-//					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolHitFX, BeamEndPoint);
-//			}
-//
-//			if (PistolBeamFX)
-//			{
-//				UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), PistolBeamFX, SocketTransform);
-//				if (Beam)
-//				{
-//					Beam->SetVectorParameter(FName("Target"), BeamEndPoint);
-//				}
-//			}
-//		}
-//	}
-//}
-
 void AMyCharacter::SpawnFX(FName SocketName, UParticleSystem* ParticleFX)
 {
+	
+	if(!GetWorld())
+	{
+		return;
+	}
+
 	const USkeletalMeshSocket* Socket = GetMesh()->GetSocketByName(SocketName); // Retrieve the socket named by SocketName from the skeletal mesh
 	if (Socket) // Check if the Socket is valid (not null)
 	{
@@ -201,12 +129,13 @@ void AMyCharacter::SpawnFX(FName SocketName, UParticleSystem* ParticleFX)
 
 bool AMyCharacter::GetBeamEndPointLocation(const FVector& SocketLocation, FVector& BeamEndLocation)
 {
-	FVector2D ViewportSize;
-	if (GEngine && GEngine->GameViewport)
+	if (!GEngine && !GEngine->GameViewport)
 	{
-		GEngine->GameViewport->GetViewportSize(ViewportSize);
+		return false; //Early return if GEngine or GameViewport is invalid
 	}
 
+	FVector2D ViewportSize;
+	GEngine->GameViewport->GetViewportSize(ViewportSize);
 	FVector2D CrosshairLocation(ViewportSize.X / 2.f, ViewportSize.Y / 2.f);
 	FVector CrosshairWorldPosition;
 	FVector CrosshairWorldDirection;
@@ -219,39 +148,36 @@ bool AMyCharacter::GetBeamEndPointLocation(const FVector& SocketLocation, FVecto
 		CrosshairWorldDirection
 	);
 
-	if(bScreenToWorld)
+	if (!bScreenToWorld) 
 	{
-		//Trace from Crosshair
-		UE_LOG(LogTemp, Warning, TEXT("Deproject Successful"));
-		FHitResult ScreenHitResult;
-		const FVector Start = CrosshairWorldPosition;
-		const FVector End = CrosshairWorldPosition + CrosshairWorldDirection * 50000.f;
-
-		BeamEndLocation = End; //No Hit
-
-		GetWorld()->LineTraceSingleByChannel(ScreenHitResult, Start, End, ECollisionChannel::ECC_Visibility);
-
-		if (ScreenHitResult.bBlockingHit)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Trace FROM Crosshair Successful"));
-			BeamEndLocation = ScreenHitResult.Location; //Storing location of hit from crosshair to object in the world
-
-		}
-
-		//Trace from Weapon Barrel
-		FHitResult BarrelHitResult;
-		const FVector WeaponTraceStart = SocketLocation;
-		const FVector WeaponTraceEnd = BeamEndLocation; //Either no hit or hit from crosshair to object in the world
-
-		GetWorld()->LineTraceSingleByChannel(BarrelHitResult, WeaponTraceStart, WeaponTraceEnd, ECollisionChannel::ECC_Visibility);
-		if (BarrelHitResult.bBlockingHit)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Trace FROM Weapon Barrel Successful"));
-			BeamEndLocation = BarrelHitResult.Location;
-		}
-		return true;
+		return false;
 	}
-	return false;
+
+	//Trace from Crosshair
+	FHitResult ScreenHitResult;
+	const FVector Start = CrosshairWorldPosition;
+	const FVector End = CrosshairWorldPosition + CrosshairWorldDirection * 50000.f;
+
+	BeamEndLocation = End; //No Hit
+
+	GetWorld()->LineTraceSingleByChannel(ScreenHitResult, Start, End, ECollisionChannel::ECC_Visibility);
+
+	if (ScreenHitResult.bBlockingHit)
+	{
+		BeamEndLocation = ScreenHitResult.Location; //Storing location of hit from crosshair to object in the world
+	}
+
+	//Trace from Weapon Barrel
+	FHitResult BarrelHitResult;
+	const FVector WeaponTraceStart = SocketLocation;
+	const FVector WeaponTraceEnd = BeamEndLocation; //Either no hit or hit from crosshair to object in the world
+
+	GetWorld()->LineTraceSingleByChannel(BarrelHitResult, WeaponTraceStart, WeaponTraceEnd, ECollisionChannel::ECC_Visibility);
+	if (BarrelHitResult.bBlockingHit)
+	{
+		BeamEndLocation = BarrelHitResult.Location;
+	}
+	return true;
 }
 
 void AMyCharacter::PlayAnimation(UAnimMontage* AnimationMontage, FName SectionName)
