@@ -28,6 +28,9 @@ protected:
 	void LookUpAtRate(float Rate);
 	void FirePistol();
 	void UltimateFire();
+	void AimingPressed();
+	void AimingReleased();
+	void CameraInterp(float DeltaTime);
 	void SpawnFX(FName SocketName, UParticleSystem* ParticleFX);
 	void PlayAnimation(UAnimMontage* AnimationMontage, FName SectionName);
 	void PlaySound(USoundBase* SoundCue);
@@ -36,6 +39,8 @@ protected:
 	void DelayedUltimateAbilityEmitter();
 	void EnablePlayerInput();
 	bool GetBeamEndPointLocation(const FVector& SocketLocation, FVector& BeamEndLocation);
+	bool TraceForWidget(FHitResult& HitResult, FVector& HitLocation);
+
 private:
 	//Camera boom positioning the camera behind the character
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
@@ -82,6 +87,15 @@ private:
 	float UltimateAbilityDelay;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ultimate, meta = (AllowPrivateAccess = "true"))
 	float UltimateAbilityEmitterDelay;
+	//Camera Zoom Variables
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	FVector TargetCamLocation;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	FRotator TargetCamRotation;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	float ZoomInterpSpeed;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	bool bIsAiming;
 
 	FTimerHandle UltimateHandle; //Used for delaying ultimate
 	FTimerHandle UltimateEmitterHandle;
@@ -90,4 +104,5 @@ public:
 
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	FORCEINLINE bool ReturnIsAiming() const { return bIsAiming; }
 };
